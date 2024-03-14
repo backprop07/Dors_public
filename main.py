@@ -4,14 +4,14 @@ if __name__ == "__main__":
     import random
     import pickle
     import datetime
-    from langchain.llms import GPT4All
+    from langchain_community.llms import GPT4All
     from langchain.prompts import PromptTemplate
-    from langchain.embeddings import GPT4AllEmbeddings
-    from langchain.vectorstores import FAISS
+    from langchain_community.embeddings import GPT4AllEmbeddings
+    from langchain_community.vectorstores import FAISS
     from langchain.retrievers import ContextualCompressionRetriever
     from langchain.retrievers.document_compressors import EmbeddingsFilter
     from langchain.retrievers.document_compressors import LLMChainExtractor
-    import wikipedia
+
 
     if os.path.exists('user.dat'):
         with dbm.open('user') as user:
@@ -28,7 +28,7 @@ if __name__ == "__main__":
             name = pickle.loads(user['name'])
             system_memory = pickle.loads(user['system_memory'])
     llm = GPT4All(
-        model=r"E:\GPT4ALL\model\wizardlm-13b-v1.1-superhot-8k.ggmlv3.q4_0.bin",
+        model="Fill in path to GPT4ALL model here.",
         max_tokens=2048,
     )
     embeddings = GPT4AllEmbeddings()
@@ -49,8 +49,8 @@ if __name__ == "__main__":
         'History:{episodic}\nAdditional information:{'
         'semantic}\nPotentially relevant information on the internet:{wiki}\n\nCurrent conversation:{memory}')
     inp = input()
-    db1 = FAISS.load_local('./episodic_faiss_index', embeddings)
-    db2 = FAISS.load_local('./semantic_faiss_index', embeddings)
+    db1 = FAISS.load_local('./episodic_faiss_index', embeddings,allow_dangerous_deserialization=True)
+    db2 = FAISS.load_local('./semantic_faiss_index', embeddings,allow_dangerous_deserialization=True)
     retriever1 = db1.as_retriever()
     retriever2 = db2.as_retriever()
     compressor = LLMChainExtractor.from_llm(llm)
@@ -59,7 +59,7 @@ if __name__ == "__main__":
                                                             base_retriever=retriever1)
     compression_retriever2 = ContextualCompressionRetriever(base_compressor=embeddings_filter,
                                                             base_retriever=retriever2)
-    while llm.predict(text=end_prompt.format(inp=inp)).strip() != 'Yes':
+    while llm.invoke(text=end_prompt.format(inp=inp)).strip() != 'Yes':
         memory += f'\n#person1#:{inp}\n\n#person0#:'
         episodic = ""
         compressed_docs = compression_retriever1.get_relevant_documents(f'#person0# is asked:{inp}')
@@ -68,7 +68,7 @@ if __name__ == "__main__":
         episodic = episodic[:1000]
         if inp.strip() != '':
             compressed_docs1 = compression_retriever2.get_relevant_documents(inp)
-            semantic_inp = llm.predict(episodic_to_semantic_prompt.format(episodic=episodic, question=inp))
+            semantic_inp = llm.invoke(episodic_to_semantic_prompt.format(episodic=episodic, question=inp))
         else:
             compressed_docs1 = []
             semantic_inp = ''
@@ -89,7 +89,7 @@ if __name__ == "__main__":
         for doc in compressed_docs2:
             semantic += doc.page_content
         semantic = semantic[:1000]
-        output = llm.predict(conversation_prompt.format(episodic=episodic, semantic=semantic, wiki=wiki,memory=memory))
+        output = llm.invoke(conversation_prompt.format(episodic=episodic, semantic=semantic, wiki=wiki,memory=memory))
         output = output.split('#person1#')[0].replace('#person0#','')
         print(output)
         memory += output.replace('\n', ' ')
@@ -104,7 +104,7 @@ if __name__ == "__main__":
     memory += f'\n#person1#({name}):{inp}\n#person0#:'
     memory += output.replace('\n', ' ')
     memory += f'\nConversation ends at {datetime.datetime.now().strftime("%Y-%m-%d %H:%M")} '
-    system_memory=llm.predict(f'Given profile of #person0#: {system_memory}\nGiven conversation:{memory}\n Infer and summarize the information '
+    system_memory=llm.invoke(f'Given profile of #person0#: {system_memory}\nGiven conversation:{memory}\n Infer and summarize the information '
                 f'and characteristic of #person0#:')
     with dbm.open("user",'c') as user:
         user["system_memory"]=pickle.dumps(system_memory)

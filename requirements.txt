@@ -1,1 +1,6 @@
-langchain~=0.0.300
+langchain
+pypdf
+tiktoken
+faiss-cpu
+docx2txt
+wikipedia
