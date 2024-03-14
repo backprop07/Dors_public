@@ -1,0 +1,5 @@
+user.*
+semantic_cache
+semantic_faiss_index
+episodic_cache
+episodic_faiss_index
